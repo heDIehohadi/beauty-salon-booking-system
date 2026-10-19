@@ -56,3 +56,8 @@ make availability visible, and prevent conflicting bookings.
 - The salon's working hours and hairstylists' availability
   need further analysis.
 - Appointment duration rules need further analysis.
+
+- The salon manager is responsible for managing hairstylists'
+  working hours, breaks, and leave periods.
+- Hairstylists cannot directly modify their availability
+  in the initial version.

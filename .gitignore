@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Keep example environment files in Git
+!.env.example
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# Test and coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# IDE
+.vscode/
+
+# Operating system
+.DS_Store
+Thumbs.db
