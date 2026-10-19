@@ -35,6 +35,11 @@ class ServicePortfolio(models.Model):
     image = models.ImageField(upload_to="services/portfolio/")
     caption = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    duration_minutes = models.PositiveSmallIntegerField(
+    default=60,
+    help_text="Service duration in minutes",
+)
 
     def __str__(self):
         return f"Portfolio: {self.service.name}"    
+    

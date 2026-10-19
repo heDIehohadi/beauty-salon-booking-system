@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'services',
     'rest_framework',
     'rest_framework.authtoken',
+    'stylists'
 ]
 
 MIDDLEWARE = [
