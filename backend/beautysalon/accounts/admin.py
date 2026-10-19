@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-
+from .models import OTPRequest
 from .models import User
 
 
@@ -53,3 +53,23 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
+
+@admin.register(OTPRequest)
+class OTPRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "is_used",
+        "attempts",
+        "created_at",
+        "expires_at",
+    )
+    list_filter = ("is_used", "created_at")
+    search_fields = ("user__username", "user__phone_number")
+    readonly_fields = (
+        "user",
+        "otp_code",
+        "created_at",
+        "expires_at",
+        "attempts",
+        "is_used",
+    )    
