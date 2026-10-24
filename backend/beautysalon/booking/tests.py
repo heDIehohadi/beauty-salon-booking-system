@@ -12,9 +12,7 @@ from services.models import Services
 from stylists.models import Stylist
 from booking.models import Booking
 
-
 User = get_user_model()
-
 
 class BookingAPITests(APITestCase):
 
@@ -45,7 +43,6 @@ class BookingAPITests(APITestCase):
             last_name="Stylist",
             is_active=True,
         )
-
         self.stylist.services.add(self.service)
 
         self.client.force_authenticate(user=self.customer)
@@ -89,3 +86,19 @@ class BookingAPITests(APITestCase):
             booking.end_at - booking.start_at,
             timedelta(minutes=45),
         )
+
+    def test_cannot_book_in_the_past(self):
+        start_at = timezone.now() - timedelta(days=1)
+
+        response = self.client.post(
+            reverse("booking-list-create"),
+            {
+                "service": self.service.pk,
+                "stylist": self.stylist.pk,
+                "start_at": start_at.isoformat(),
+                "customer_note": "Past booking test",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Booking.objects.count(), 0)
