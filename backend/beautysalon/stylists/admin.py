@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Stylist, StylistPortfolio
+from .models import Stylist, StylistPortfolio, StylistWorkingHour
 
 
 class StylistPortfolioInline(admin.TabularInline):
@@ -30,3 +30,14 @@ class StylistPortfolioAdmin(admin.ModelAdmin):
         "stylist__last_name",
         "caption",
     )
+@admin.register(StylistWorkingHour)
+class StylistWorkingHourAdmin(admin.ModelAdmin):
+    list_display = (
+        "stylist",
+        "weekday",
+        "start_time",
+        "end_time",
+        "is_active",
+    )
+    list_filter = ("weekday", "is_active", "stylist")
+    list_select_related = ("stylist",)    

@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class Stylist(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
@@ -41,3 +40,39 @@ class StylistPortfolio(models.Model):
 
     def __str__(self):
         return f"Portfolio: {self.stylist}"
+
+class StylistWorkingHour(models.Model):
+    class Weekday(models.IntegerChoices):
+        MONDAY = 0, "Monday"
+        TUESDAY = 1, "Tuesday"
+        WEDNESDAY = 2, "Wednesday"
+        THURSDAY = 3, "Thursday"
+        FRIDAY = 4, "Friday"
+        SATURDAY = 5, "Saturday"
+        SUNDAY = 6, "Sunday"
+
+    stylist = models.ForeignKey(
+        "stylists.Stylist",
+        on_delete=models.CASCADE,
+        related_name="working_hours",
+    )
+    weekday = models.IntegerField(choices=Weekday.choices)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["weekday", "start_time"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stylist", "weekday", "start_time"],
+                name="unique_stylist_working_hour",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.stylist} - {self.get_weekday_display()} "
+            f"{self.start_time}-{self.end_time}"
+        )
+    
