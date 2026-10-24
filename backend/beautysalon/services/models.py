@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class Services(models.Model):
 
     class Category(models.TextChoices):
@@ -19,12 +18,17 @@ class Services(models.Model):
         max_digits=10,
         decimal_places=2,
     )
+    duration_minutes = models.PositiveSmallIntegerField(
+        default=60,
+        help_text="Service duration in minutes",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
 
 class ServicePortfolio(models.Model):
     service = models.ForeignKey(
@@ -35,11 +39,6 @@ class ServicePortfolio(models.Model):
     image = models.ImageField(upload_to="services/portfolio/")
     caption = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    duration_minutes = models.PositiveSmallIntegerField(
-    default=60,
-    help_text="Service duration in minutes",
-)
 
     def __str__(self):
-        return f"Portfolio: {self.service.name}"    
-    
+        return f"Portfolio: {self.service.name}"
