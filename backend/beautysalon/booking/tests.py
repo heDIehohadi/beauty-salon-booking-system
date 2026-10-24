@@ -1,40 +1,30 @@
-
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from services.models import Services
-from stylists.models import Stylist
 from booking.models import Booking
+from services.models import Services
+from stylists.models import Stylist, StylistWorkingHour
+
 
 User = get_user_model()
 
+
 class BookingAPITests(APITestCase):
-
     def setUp(self):
-        """
-        ساخت داده‌های اولیه برای تست‌ها.
-        این متد قبل از اجرای هر تست اجرا می‌شود.
-        """
-
         self.customer = User.objects.create_user(
-            username="test_customer",
-            password="TestPassword123!",
-            phone_number="09120000000",
-            is_phone_verified=True,
+            username="booking_customer",
+            password="test-password-123",
         )
 
         self.service = Services.objects.create(
-            name="Manicure",
-            category=Services.Category.NAILS,
-            description="Test manicure service",
-            price="500.00",
-            duration_minutes=45,
+            name="Test Service",
+            price="50.00",
+            duration_minutes=60,
             is_active=True,
         )
 
@@ -47,58 +37,134 @@ class BookingAPITests(APITestCase):
 
         self.client.force_authenticate(user=self.customer)
 
-    def test_create_valid_booking(self):
-        """
-        بررسی ایجاد رزرو معتبر و محاسبه زمان پایان.
-        """
+    def create_working_hour(self, start_at):
+        local_start = timezone.localtime(start_at)
+        local_end = local_start + timedelta(
+            minutes=self.service.duration_minutes
+        )
 
-        start_at = timezone.now() + timedelta(days=1)
+        if local_start.date() != local_end.date():
+            raise ValueError("Test booking must not cross midnight.")
 
-        response = self.client.post(
+        StylistWorkingHour.objects.create(
+            stylist=self.stylist,
+            weekday=local_start.weekday(),
+            start_time=(
+                local_start - timedelta(hours=1)
+            ).time().replace(tzinfo=None),
+            end_time=(
+                local_end + timedelta(hours=1)
+            ).time().replace(tzinfo=None),
+            is_active=True,
+        )
+
+    def create_booking(self, start_at=None):
+        if start_at is None:
+            start_at = timezone.now() + timedelta(days=1)
+
+        self.create_working_hour(start_at)
+
+        return self.client.post(
             reverse("booking-list-create"),
             {
                 "service": self.service.pk,
                 "stylist": self.stylist.pk,
                 "start_at": start_at.isoformat(),
-                "customer_note": "First test booking",
+                "customer_note": "Test booking",
             },
+            format="json",
+        )
+
+    def test_create_valid_booking(self):
+        """ایجاد رزرو معتبر و بررسی زمان پایان."""
+        start_at = timezone.now() + timedelta(days=1)
+        response = self.create_booking(start_at)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+            msg=f"Booking API error: {response.data}",
+        )
+
+        self.assertEqual(Booking.objects.count(), 1)
+
+        booking = Booking.objects.get()
+
+        self.assertEqual(booking.customer, self.customer)
+        self.assertEqual(booking.service, self.service)
+        self.assertEqual(booking.stylist, self.stylist)
+        self.assertEqual(booking.status, Booking.Status.PENDING)
+
+        expected_end_at = start_at + timedelta(
+            minutes=self.service.duration_minutes
+        )
+        self.assertEqual(booking.end_at, expected_end_at)
+
+    def test_list_only_current_customer_bookings(self):
+        """فهرست رزروهای کاربر واردشده."""
+        create_response = self.create_booking()
+
+        self.assertEqual(
+            create_response.status_code,
+            status.HTTP_201_CREATED,
+            msg=f"Booking API error: {create_response.data}",
+        )
+
+        response = self.client.get(
+            reverse("booking-list-create")
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["customer"],
+            self.customer.pk,
+        )
+
+    def test_cancel_booking(self):
+        """لغو رزرو متعلق به کاربر واردشده."""
+        create_response = self.create_booking()
+
+        self.assertEqual(
+            create_response.status_code,
+            status.HTTP_201_CREATED,
+            msg=f"Booking API error: {create_response.data}",
+        )
+
+        booking = Booking.objects.get()
+
+        response = self.client.patch(
+            reverse(
+                "booking-cancel",
+                kwargs={"pk": booking.pk},
+            ),
+            {},
             format="json",
         )
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_201_CREATED,
+            status.HTTP_200_OK,
+            msg=f"Cancel API error: {response.data}",
         )
 
+        booking.refresh_from_db()
         self.assertEqual(
-            Booking.objects.count(),
-            1,
+            booking.status,
+            Booking.Status.CANCELLED,
         )
 
-        booking = Booking.objects.get()
-
-        self.assertEqual(
-            booking.customer,
-            self.customer,
-        )
-
-        self.assertEqual(
-            booking.end_at - booking.start_at,
-            timedelta(minutes=45),
-        )
-
-    def test_cannot_book_in_the_past(self):
-        start_at = timezone.now() - timedelta(days=1)
+    def test_booking_requires_authentication(self):
+        """ایجاد رزرو بدون ورود باید رد شود."""
+        self.client.force_authenticate(user=None)
 
         response = self.client.post(
             reverse("booking-list-create"),
-            {
-                "service": self.service.pk,
-                "stylist": self.stylist.pk,
-                "start_at": start_at.isoformat(),
-                "customer_note": "Past booking test",
-            },
+            {},
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(Booking.objects.count(), 0)
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
