@@ -121,3 +121,44 @@ class StylistWorkingHour(models.Model):
             f"{self.stylist} - {self.get_weekday_display()} "
             f"{self.start_time}-{self.end_time}"
         )
+
+
+class StylistTimeOff(models.Model):
+    class Type(models.TextChoices):
+        BREAK = "break", "Break"
+        LEAVE = "leave", "Leave"
+
+    stylist = models.ForeignKey(
+        Stylist,
+        on_delete=models.CASCADE,
+        related_name="time_offs",
+    )
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField()
+    type = models.CharField(
+        max_length=10,
+        choices=Type.choices,
+        default=Type.BREAK,
+    )
+    reason = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["start_at"]
+        indexes = [
+            models.Index(fields=["stylist", "start_at", "end_at"]),
+            models.Index(fields=["is_active", "start_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_at__gt=models.F("start_at")),
+                name="stylist_time_off_end_after_start",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.stylist} - {self.get_type_display()} "
+            f"({self.start_at} - {self.end_at})"
+        )
