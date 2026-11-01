@@ -22,7 +22,7 @@ class Stylist(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["first_name", "last_name"]
+        ordering = ("first_name", "last_name")
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -39,7 +39,7 @@ class StylistPortfolio(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ("-created_at",)
 
     def __str__(self):
         return f"Portfolio: {self.stylist}"
@@ -66,8 +66,8 @@ class StylistWorkingHour(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["weekday", "start_time"]
-        constraints = [
+        ordering = ("weekday", "start_time")
+        constraints = (
             models.UniqueConstraint(
                 fields=["stylist", "weekday", "start_time"],
                 name="unique_stylist_working_hour",
@@ -76,8 +76,7 @@ class StylistWorkingHour(models.Model):
                 condition=Q(end_time__gt=F("start_time")),
                 name="working_hour_end_after_start",
             ),
-        ]
-
+        )
     def clean(self):
         super().clean()
 
@@ -145,20 +144,52 @@ class StylistTimeOff(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["start_at"]
-        indexes = [
+        ordering = ("start_at",)
+        indexes = (
             models.Index(fields=["stylist", "start_at", "end_at"]),
             models.Index(fields=["is_active", "start_at"]),
-        ]
-        constraints = [
+        )
+        constraints = (
             models.CheckConstraint(
-                condition=models.Q(end_at__gt=models.F("start_at")),
+                condition=Q(end_at__gt=F("start_at")),
                 name="stylist_time_off_end_after_start",
             ),
-        ]
+        )
 
     def __str__(self):
         return (
             f"{self.stylist} - {self.get_type_display()} "
             f"({self.start_at} - {self.end_at})"
         )
+
+    def clean(self):
+        super().clean()
+
+        if not self.is_active:
+            return
+
+        if not self.stylist_id or not self.start_at or not self.end_at:
+            return
+
+        if self.end_at <= self.start_at:
+            raise ValidationError({
+                "end_at": "End time must be after start time."
+            })
+
+        overlapping_time_off = StylistTimeOff.objects.filter(
+            stylist=self.stylist,
+            is_active=True,
+            start_at__lt=self.end_at,
+            end_at__gt=self.start_at,
+        )
+
+        if self.pk:
+            overlapping_time_off = overlapping_time_off.exclude(pk=self.pk)
+
+        if overlapping_time_off.exists():
+            raise ValidationError({
+                "start_at": (
+                    "This time overlaps with another active "
+                    "time-off period for this stylist."
+                )
+            })
