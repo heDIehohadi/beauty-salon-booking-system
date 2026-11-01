@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Stylist, StylistPortfolio, StylistWorkingHour
+
+from .models import (
+    Stylist,
+    StylistPortfolio,
+    StylistTimeOff,
+    StylistWorkingHour,
+)
 
 
 class StylistPortfolioInline(admin.TabularInline):
@@ -19,7 +25,7 @@ class StylistAdmin(admin.ModelAdmin):
     search_fields = ("first_name", "last_name")
     list_editable = ("is_active",)
     filter_horizontal = ("services",)
-    inlines = [StylistPortfolioInline]
+    inlines = (StylistPortfolioInline,)
 
 
 @admin.register(StylistPortfolio)
@@ -40,4 +46,24 @@ class StylistWorkingHourAdmin(admin.ModelAdmin):
         "is_active",
     )
     list_filter = ("weekday", "is_active", "stylist")
-    list_select_related = ("stylist",)    
+    list_select_related = ("stylist",)
+
+
+@admin.register(StylistTimeOff)
+class StylistTimeOffAdmin(admin.ModelAdmin):
+    list_display = (
+        "stylist",
+        "type",
+        "start_at",
+        "end_at",
+        "is_active",
+    )
+    list_filter = ("type", "is_active", "stylist")
+    search_fields = (
+        "stylist__first_name",
+        "stylist__last_name",
+        "reason",
+    )
+    list_select_related = ("stylist",)
+    date_hierarchy = "start_at"
+    readonly_fields = ("created_at",)

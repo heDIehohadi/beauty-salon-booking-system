@@ -1,8 +1,8 @@
 from django.utils import timezone
 from rest_framework import serializers
-
 from services.models import Services
-from stylists.models import Stylist, StylistWorkingHour
+from stylists.models import Stylist, StylistTimeOff, StylistWorkingHour
+
 from .models import Booking
 
 
@@ -118,13 +118,29 @@ class BookingSerializer(serializers.ModelSerializer):
                 "start_at": "This time overlaps with another booking."
             })
 
+        # 7. Reject bookings that overlap with stylist time off.
+        overlapping_time_off = StylistTimeOff.objects.filter(
+            stylist=stylist,
+            is_active=True,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+        )
+
+        if overlapping_time_off.exists():
+            raise serializers.ValidationError({
+                "start_at": (
+                    "This time overlaps with the stylist's "
+                    "break or leave."
+                )
+            })
+
         attrs["end_at"] = end_at
         return attrs
 
     def create(self, validated_data):
-        request = self.context["request"]
+            request = self.context["request"]
 
-        return Booking.objects.create(
-            customer=request.user,
-            **validated_data,
-        )
+            return Booking.objects.create(
+                customer=request.user,
+                **validated_data,
+            )
