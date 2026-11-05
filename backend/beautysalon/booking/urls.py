@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AdminBookingListView,
     AvailableSlotsView,
     BookingCancelView,
     BookingDetailView,
@@ -28,4 +29,9 @@ urlpatterns = [
         BookingCancelView.as_view(),
         name="booking-cancel",
     ),
+    path(
+    "admin/",
+    AdminBookingListView.as_view(),
+    name="admin-booking-list",
+),
 ]

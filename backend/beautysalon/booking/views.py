@@ -7,11 +7,13 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions import IsSalonAdmin
 from services.models import Services
 from stylists.models import Stylist, StylistTimeOff, StylistWorkingHour
 
 from .models import Booking
 from .serializers import BookingSerializer
+
 
 class BookingListCreateView(generics.ListCreateAPIView):
     """
@@ -19,7 +21,7 @@ class BookingListCreateView(generics.ListCreateAPIView):
     POST: ایجاد رزرو جدید
     """
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         return (
@@ -53,7 +55,7 @@ class BookingDetailView(generics.RetrieveAPIView):
     GET: مشاهده جزئیات یک رزرو متعلق به کاربر واردشده
     """
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         return (
@@ -68,7 +70,7 @@ class BookingCancelView(generics.GenericAPIView):
     PATCH: لغو رزرو متعلق به کاربر واردشده
     """
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         return Booking.objects.filter(customer=self.request.user)
@@ -97,7 +99,20 @@ class BookingCancelView(generics.GenericAPIView):
         serializer = self.get_serializer(booking)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+class AdminBookingListView(generics.ListAPIView):
+    """
+    GET: Display all salon bookings.
+    Accessible only to salon administrators.
+    """
 
+    serializer_class = BookingSerializer
+    permission_classes = (IsAuthenticated, IsSalonAdmin,)
+
+    def get_queryset(self):
+        return (
+            Booking.objects
+            .select_related("customer", "service", "stylist")
+            .order_by("-start_at") )
 class AvailableSlotsView(generics.GenericAPIView):
     """
     GET: نمایش زمان‌های شروع آزاد برای یک آرایشگر، سرویس و تاریخ.
@@ -106,7 +121,7 @@ class AvailableSlotsView(generics.GenericAPIView):
     فاصلهٔ زمان‌های شروع: ۱۵ دقیقه
     مدت هر نوبت: بر اساس مدت سرویس
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
 
     SLOT_INTERVAL_MINUTES = 15
 

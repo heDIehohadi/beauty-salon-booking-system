@@ -138,9 +138,9 @@ class BookingSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-            request = self.context["request"]
+        request = self.context["request"]
 
-            return Booking.objects.create(
+        return Booking.objects.create(
                 customer=request.user,
                 **validated_data,
-            )
+        )
