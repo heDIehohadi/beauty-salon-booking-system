@@ -1,0 +1,15 @@
+# Ruff configuration for the Django project root (backend/beautysalon).
+extend-exclude = ["*/migrations/*"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "RUF", "SIM"]
+ignore = [
+    # DRF/Django class attributes (Meta.ordering, permission_classes, ...)
+    # are idiomatic mutable class defaults.
+    "RUF012",
+    # UserAdmin.fieldsets + (...) is the documented Django admin idiom.
+    "RUF005",
+    # Persian comments/docstrings are intentional (digits look "ambiguous").
+    "RUF002",
+    "RUF003",
+]
