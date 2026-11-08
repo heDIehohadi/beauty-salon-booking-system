@@ -2,10 +2,10 @@ from django.urls import path
 
 from .views import (
     LoginView,
+    ProfileView,
     RegistrationView,
     RequestOTPView,
     VerifyOTPView,
-    ProfileView
 )
 
 urlpatterns = [

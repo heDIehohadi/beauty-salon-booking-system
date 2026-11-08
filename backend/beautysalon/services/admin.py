@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Services, ServicePortfolio
+from .models import ServicePortfolio, Services
 
 
 class ServicePortfolioInline(admin.TabularInline):

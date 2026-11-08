@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Services, ServicePortfolio
+from .models import ServicePortfolio, Services
 
 
 class ServicePortfolioSerializer(serializers.ModelSerializer):

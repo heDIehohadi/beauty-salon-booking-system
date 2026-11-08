@@ -36,14 +36,13 @@ class StylistWorkingHourTests(TestCase):
             end_time=time(12, 0),
         )
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                StylistWorkingHour.objects.create(
-                    stylist=self.stylist,
-                    weekday=StylistWorkingHour.Weekday.MONDAY,
-                    start_time=time(9, 0),
-                    end_time=time(17, 0),
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            StylistWorkingHour.objects.create(
+                stylist=self.stylist,
+                weekday=StylistWorkingHour.Weekday.MONDAY,
+                start_time=time(9, 0),
+                end_time=time(17, 0),
+            )
 
     def test_overlapping_working_hours_are_rejected_by_clean(self):
         StylistWorkingHour.objects.create(
