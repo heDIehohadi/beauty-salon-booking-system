@@ -18,6 +18,7 @@ class BookingAPITests(APITestCase):
         self.customer = User.objects.create_user(
             username="booking_customer",
             password="test-password-123",
+            phone_number="09120000001",
         )
 
         self.service = Services.objects.create(
