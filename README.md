@@ -1,0 +1,117 @@
+# Beauty Salon Booking System
+
+A REST API for a beauty salon appointment booking workflow, built with
+Django and Django REST Framework. Customers can browse services and
+stylists, see free time slots that respect each service's duration, and
+book, view and cancel appointments. Salon administrators manage stylists,
+working hours, breaks and leave.
+
+The problem statement and scope are in
+[`docs/01-problem-definition.md`](docs/01-problem-definition.md).
+
+## Features
+
+- Custom user model (`accounts.User`) with unique phone number and a
+  `customer` / `admin` role.
+- Registration, token login and phone verification with a one-time code
+  (code is hashed, expires after 5 minutes, 60-second resend limit,
+  locked after 5 wrong attempts).
+- Public service catalog with category filter.
+- Public stylist catalog (active stylists, their active services,
+  portfolio and active working hours).
+- Available slots in 15-minute steps, based on the stylist's working
+  hours, the service duration, existing bookings and stylist time off.
+- Booking creation with server-side validation: future time only,
+  stylist must offer the service, fits inside working hours, no overlap
+  with other bookings, no overlap with time off, no crossing midnight.
+- Customers only see and cancel their own bookings.
+- Admin-only list of all bookings; working hours, time off and bookings
+  are also manageable in Django Admin.
+
+## Tech stack
+
+Python, Django 6.1, Django REST Framework (token authentication),
+SQLite (development), Pillow (image fields), Ruff (linting).
+Time zone: `Asia/Tehran`, `USE_TZ = True`.
+
+## Project layout
+
+```
+backend/
+  requirements.txt, requirements-dev.txt
+  beautysalon/            # Django project root (manage.py)
+    accounts/             # user model, registration, OTP, token login
+    services/             # service catalog
+    stylists/             # stylists, working hours, time off, public API
+    booking/              # bookings, available slots, cancellation
+docs/                     # project documents
+```
+
+## Getting started
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+
+cd backend/beautysalon
+python manage.py migrate
+python manage.py createsuperuser   # phone_number is required and unique
+python manage.py runserver
+```
+
+Run the checks:
+
+```bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+ruff check .
+python manage.py test
+```
+
+## API overview
+
+All endpoints are under `/api/`. Authenticated endpoints expect the header
+`Authorization: Token <token>`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/accounts/register/` | public | Create a customer (`username`, `phone_number`, `password`, `password_confirm`) |
+| POST | `/api/accounts/otp/request/` | public | Generate a verification code for a phone number |
+| POST | `/api/accounts/otp/verify/` | public | Verify the phone number (`phone_number`, 6-digit `code`) |
+| POST | `/api/accounts/login/` | public | Returns `token` (phone must be verified) |
+| GET | `/api/accounts/profile/` | user | Current user |
+| GET | `/api/services/` | public | Active services, optional `?category=` |
+| GET | `/api/services/<id>/` | public | Service detail |
+| GET | `/api/stylists/` | public | Active stylists with their active services |
+| GET | `/api/stylists/<id>/` | public | Stylist detail with portfolio and active working hours |
+| GET | `/api/bookings/available-slots/?stylist=&service=&date=YYYY-MM-DD` | user | Free start times |
+| GET, POST | `/api/bookings/` | user | List own bookings / create a booking |
+| GET | `/api/bookings/<id>/` | user | Own booking detail |
+| PATCH | `/api/bookings/<id>/cancel/` | user | Cancel an own booking (pending or confirmed only) |
+| GET | `/api/bookings/admin/` | admin | All bookings |
+
+## Business rules
+
+- Slot start times are generated every 15 minutes; a slot is offered only
+  if the whole service duration fits inside an active working hour.
+- A slot is hidden if it overlaps a pending or confirmed booking or an
+  active time-off period of the stylist.
+- A booking that is already cancelled or completed cannot be cancelled.
+- Working hours of one stylist on one weekday may not overlap
+  (validated in `clean()`, so in Django Admin and forms; a plain
+  `save()` does not call `clean()`).
+
+## Known limitations
+
+- No real SMS provider: in development the verification code is printed
+  to the server console.
+- Concurrency: the booking view locks the stylist row with
+  `select_for_update`, which has an effect on PostgreSQL but not on
+  SQLite. Production use needs PostgreSQL and a database-level guarantee
+  against double booking.
+- `SECRET_KEY`, `DEBUG` and `ALLOWED_HOSTS` are development settings in
+  `settings.py`; they must come from the environment in production.
+- Uploaded images need `MEDIA_ROOT` / `MEDIA_URL` configuration to be
+  served.
+- Rescheduling is in the project scope but is not implemented yet.
