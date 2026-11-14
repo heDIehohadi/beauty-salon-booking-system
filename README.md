@@ -69,6 +69,23 @@ ruff check .
 python manage.py test
 ```
 
+## Configuration
+
+Settings are read from environment variables; without any of them the
+project runs in development mode. Copy `backend/beautysalon/.env.example`
+and load it with `set -a; source .env; set +a` (Django does not read
+`.env` files by itself).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DJANGO_DEBUG` | `true` | Set to `false` in production |
+| `DJANGO_SECRET_KEY` | built-in insecure key (only when debug is on) | Required when `DJANGO_DEBUG=false`, otherwise startup fails |
+| `DJANGO_ALLOWED_HOSTS` | empty | Comma-separated host names |
+
+Uploaded images are stored in `backend/beautysalon/media/` and served by
+Django only while `DJANGO_DEBUG` is on; in production a web server or
+object storage must serve `MEDIA_ROOT`.
+
 ## API overview
 
 All endpoints are under `/api/`. Authenticated endpoints expect the header
@@ -116,7 +133,6 @@ All endpoints are under `/api/`. Authenticated endpoints expect the header
   `select_for_update`, which has an effect on PostgreSQL but not on
   SQLite. Production use needs PostgreSQL and a database-level guarantee
   against double booking.
-- `SECRET_KEY`, `DEBUG` and `ALLOWED_HOSTS` are development settings in
-  `settings.py`; they must come from the environment in production.
-- Uploaded images need `MEDIA_ROOT` / `MEDIA_URL` configuration to be
-  served.
+- Production deployment is not set up (no Docker, no PostgreSQL
+  configuration, no web server); see "Configuration" for the environment
+  variables that already exist.
