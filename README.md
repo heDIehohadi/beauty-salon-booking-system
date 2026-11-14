@@ -1,5 +1,7 @@
 # Beauty Salon Booking System
 
+[![CI](https://github.com/heDIehohadi/beauty-salon-booking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/heDIehohadi/beauty-salon-booking-system/actions/workflows/ci.yml)
+
 A REST API for a beauty salon appointment booking workflow, built with
 Django and Django REST Framework. Customers can browse services and
 stylists, see free time slots that respect each service's duration, and
@@ -43,7 +45,7 @@ backend/
     accounts/             # user model, registration, OTP, token login
     services/             # service catalog
     stylists/             # stylists, working hours, time off, public API
-    booking/              # bookings, available slots, cancellation
+    booking/              # bookings, slots, cancel, reschedule, seed_demo
 docs/                     # project documents
 ```
 
@@ -68,6 +70,53 @@ python manage.py makemigrations --check --dry-run
 ruff check .
 python manage.py test
 ```
+
+## Quick demo
+
+`seed_demo` creates two users (`demo_admin` and `demo_customer`, both with
+the password `demo-pass-12345`; demo data only), six services, three
+stylists with working hours and one leave day. It is safe to run twice.
+
+```bash
+cd backend/beautysalon
+python manage.py migrate
+python manage.py seed_demo
+python manage.py runserver
+```
+
+In a second terminal (use a Monday date in the future for `DATE`):
+
+```bash
+API=http://127.0.0.1:8000/api
+DATE=2026-11-16
+
+# 1. Log in and keep the token
+TOKEN=$(curl -s -X POST $API/accounts/login/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo_customer","password":"demo-pass-12345"}' \
+  | python -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+# 2. Browse the catalog (public)
+curl -s $API/services/
+curl -s $API/stylists/
+
+# 3. Free slots for stylist 1 and service 3 (Haircut)
+curl -s -H "Authorization: Token $TOKEN" \
+  "$API/bookings/available-slots/?stylist=1&service=3&date=$DATE"
+
+# 4. Book 10:00, move it to 11:00, then cancel it
+curl -s -X POST -H "Authorization: Token $TOKEN" \
+  -H 'Content-Type: application/json' $API/bookings/ \
+  -d "{\"service\":3,\"stylist\":1,\"start_at\":\"${DATE}T10:00:00+03:30\"}"
+curl -s -X PATCH -H "Authorization: Token $TOKEN" \
+  -H 'Content-Type: application/json' $API/bookings/1/reschedule/ \
+  -d "{\"start_at\":\"${DATE}T11:00:00+03:30\"}"
+curl -s -X PATCH -H "Authorization: Token $TOKEN" $API/bookings/1/cancel/
+```
+
+Booking 10:30 right after a 10:00 haircut, or 14:00 during the stylist's
+lunch break, is rejected with HTTP 400. `demo_admin` can also open
+`/admin/` and `GET /api/bookings/admin/`.
 
 ## Configuration
 
