@@ -24,7 +24,7 @@ The problem statement and scope are in
 - Booking creation with server-side validation: future time only,
   stylist must offer the service, fits inside working hours, no overlap
   with other bookings, no overlap with time off, no crossing midnight.
-- Customers only see and cancel their own bookings.
+- Customers only see, cancel and reschedule their own bookings.
 - Admin-only list of all bookings; working hours, time off and bookings
   are also manageable in Django Admin.
 
@@ -89,6 +89,7 @@ All endpoints are under `/api/`. Authenticated endpoints expect the header
 | GET, POST | `/api/bookings/` | user | List own bookings / create a booking |
 | GET | `/api/bookings/<id>/` | user | Own booking detail |
 | PATCH | `/api/bookings/<id>/cancel/` | user | Cancel an own booking (pending or confirmed only) |
+| PATCH | `/api/bookings/<id>/reschedule/` | user | Move an own booking to a new `start_at` |
 | GET | `/api/bookings/admin/` | admin | All bookings |
 
 ## Business rules
@@ -98,6 +99,11 @@ All endpoints are under `/api/`. Authenticated endpoints expect the header
 - A slot is hidden if it overlaps a pending or confirmed booking or an
   active time-off period of the stylist.
 - A booking that is already cancelled or completed cannot be cancelled.
+- Rescheduling changes only `start_at`; the service and stylist stay the same.
+  The new time must pass every rule of a new booking (the booking being
+  moved is ignored in the overlap check). Only pending or confirmed bookings
+  that have not started yet can be moved. A minimum-notice rule is not
+  defined yet.
 - Working hours of one stylist on one weekday may not overlap
   (validated in `clean()`, so in Django Admin and forms; a plain
   `save()` does not call `clean()`).
@@ -114,4 +120,3 @@ All endpoints are under `/api/`. Authenticated endpoints expect the header
   `settings.py`; they must come from the environment in production.
 - Uploaded images need `MEDIA_ROOT` / `MEDIA_URL` configuration to be
   served.
-- Rescheduling is in the project scope but is not implemented yet.
