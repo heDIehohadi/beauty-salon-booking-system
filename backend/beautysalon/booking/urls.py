@@ -6,6 +6,7 @@ from .views import (
     BookingCancelView,
     BookingDetailView,
     BookingListCreateView,
+    BookingRescheduleView,
 )
 
 urlpatterns = [
@@ -28,6 +29,11 @@ urlpatterns = [
         "<int:pk>/cancel/",
         BookingCancelView.as_view(),
         name="booking-cancel",
+    ),
+    path(
+        "<int:pk>/reschedule/",
+        BookingRescheduleView.as_view(),
+        name="booking-reschedule",
     ),
     path(
     "admin/",

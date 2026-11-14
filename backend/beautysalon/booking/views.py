@@ -12,7 +12,7 @@ from services.models import Services
 from stylists.models import Stylist, StylistTimeOff, StylistWorkingHour
 
 from .models import Booking
-from .serializers import BookingSerializer
+from .serializers import BookingRescheduleSerializer, BookingSerializer
 
 
 class BookingListCreateView(generics.ListCreateAPIView):
@@ -99,6 +99,56 @@ class BookingCancelView(generics.GenericAPIView):
         serializer = self.get_serializer(booking)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+class BookingRescheduleView(generics.GenericAPIView):
+    """
+    PATCH: انتقال رزرو متعلق به کاربر واردشده به زمان شروع جدید.
+    بدن درخواست: {"start_at": "<ISO datetime>"}
+    فقط رزروهای pending یا confirmed که هنوز شروع نشده‌اند قابل انتقال هستند.
+    """
+    serializer_class = BookingRescheduleSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        return Booking.objects.filter(customer=self.request.user)
+
+    @transaction.atomic
+    def patch(self, request, *args, **kwargs):
+        booking = self.get_object()
+
+        if booking.status not in [
+            Booking.Status.PENDING,
+            Booking.Status.CONFIRMED,
+        ]:
+            return Response(
+                {
+                    "detail": (
+                        "Only pending or confirmed bookings "
+                        "can be rescheduled."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if booking.start_at <= timezone.now():
+            return Response(
+                {"detail": "A booking that has already started "
+                           "cannot be rescheduled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # مثل ایجاد رزرو، ردیف استایلیست را قفل می‌کنیم
+        # (روی PostgreSQL اثر دارد، روی SQLite نه).
+        Stylist.objects.select_for_update().filter(
+            pk=booking.stylist_id
+        ).first()
+
+        serializer = self.get_serializer(booking, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class AdminBookingListView(generics.ListAPIView):
     """
     GET: Display all salon bookings.

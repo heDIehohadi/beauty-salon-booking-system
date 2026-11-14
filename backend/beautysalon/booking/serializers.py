@@ -145,3 +145,36 @@ class BookingSerializer(serializers.ModelSerializer):
                 customer=request.user,
                 **validated_data,
         )
+
+class BookingRescheduleSerializer(BookingSerializer):
+    """
+    Move an existing booking to a new start time.
+
+    Only `start_at` can change. The service and the stylist stay the same,
+    and the new time must pass exactly the same rules as a new booking
+    (future, working hours, no overlap with other bookings or time off).
+    The booking being moved is excluded from the overlap check.
+    """
+
+    service = serializers.PrimaryKeyRelatedField(read_only=True)
+    stylist = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta(BookingSerializer.Meta):
+        read_only_fields = (
+            *BookingSerializer.Meta.read_only_fields,
+            "customer_note",
+        )
+
+    def validate(self, attrs):
+        service = self.instance.service
+        stylist = self.instance.stylist
+
+        if not service.is_active or not stylist.is_active:
+            raise serializers.ValidationError(
+                "The service or the stylist of this booking is no "
+                "longer available."
+            )
+
+        attrs["service"] = service
+        attrs["stylist"] = stylist
+        return super().validate(attrs)
