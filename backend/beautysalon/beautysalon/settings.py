@@ -105,11 +105,15 @@ WSGI_APPLICATION = 'beautysalon.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
-
+#timeout:درخواست دوم بیست ثانیه  منتظر قفل میماند
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS':{
+            'transaction_mode' : 'IMMEDIATE',
+            'timeout' : 20
+        }
     }
 }
 
