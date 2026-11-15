@@ -105,18 +105,32 @@ WSGI_APPLICATION = 'beautysalon.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
-#timeout:درخواست دوم بیست ثانیه  منتظر قفل میماند
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'OPTIONS':{
-            'transaction_mode' : 'IMMEDIATE',
-            'timeout' : 20
+db_name = os.environ.get("DJANGO_DB_NAME")
+
+if db_name:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,
+            "USER": os.environ.get("DJANGO_DB_USER"),
+            "PASSWORD": os.environ.get("DJANGO_DB_PASSWORD"),
+            "HOST": os.environ.get("DJANGO_DB_HOST", "localhost"),
+            "PORT": os.environ.get("DJANGO_DB_PORT", "5432"),
         }
     }
-}
-
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                # قفل نوشتن از اول transaction گرفته می‌شود تا
+                # رزروهای هم‌زمان یک نوبت پشت‌سرهم اجرا شوند
+                'transaction_mode': 'IMMEDIATE',
+                'timeout': 20,
+            },
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
