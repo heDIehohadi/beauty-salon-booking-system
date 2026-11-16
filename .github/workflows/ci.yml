@@ -7,6 +7,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: salon_user
+          POSTGRES_PASSWORD: salon_password
+          POSTGRES_DB: salon_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U salon_user -d salon_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend/beautysalon
@@ -31,5 +45,14 @@ jobs:
       - name: Migrations are up to date
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Tests
+      - name: Tests (SQLite)
         run: python manage.py test
+
+      - name: Tests (PostgreSQL)
+        run: python manage.py test
+        env:
+          DJANGO_DB_NAME: salon_db
+          DJANGO_DB_USER: salon_user
+          DJANGO_DB_PASSWORD: salon_password
+          DJANGO_DB_HOST: localhost
+          DJANGO_DB_PORT: "5432"
