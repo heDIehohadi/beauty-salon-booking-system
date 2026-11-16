@@ -33,8 +33,8 @@ The problem statement and scope are in
 ## Tech stack
 
 Python, Django 6.1, Django REST Framework (token authentication),
-SQLite (development), Pillow (image fields), Ruff (linting).
-Time zone: `Asia/Tehran`, `USE_TZ = True`.
+SQLite (default) or PostgreSQL (optional, via `psycopg`), Pillow (image
+fields), Ruff (linting). Time zone: `Asia/Tehran`, `USE_TZ = True`.
 
 ## Project layout
 
@@ -130,10 +130,50 @@ and load it with `set -a; source .env; set +a` (Django does not read
 | `DJANGO_DEBUG` | `true` | Set to `false` in production |
 | `DJANGO_SECRET_KEY` | built-in insecure key (only when debug is on) | Required when `DJANGO_DEBUG=false`, otherwise startup fails |
 | `DJANGO_ALLOWED_HOSTS` | empty | Comma-separated host names |
+| `DJANGO_DB_NAME` | empty | PostgreSQL database name. If empty, SQLite is used |
+| `DJANGO_DB_USER` | empty | PostgreSQL user |
+| `DJANGO_DB_PASSWORD` | empty | PostgreSQL password |
+| `DJANGO_DB_HOST` | `localhost` | PostgreSQL host |
+| `DJANGO_DB_PORT` | `5432` | PostgreSQL port |
 
 Uploaded images are stored in `backend/beautysalon/media/` and served by
 Django only while `DJANGO_DEBUG` is on; in production a web server or
 object storage must serve `MEDIA_ROOT`.
+
+### Using PostgreSQL
+
+By default the project uses SQLite. To use PostgreSQL instead, create a
+database and a user, then set the `DJANGO_DB_*` variables.
+
+1. Create the user and the database:
+
+   ```bash
+   sudo -u postgres psql
+   ```
+
+   ```sql
+   CREATE USER salon_user WITH PASSWORD '<your-password>' CREATEDB;
+   CREATE DATABASE salon_db OWNER salon_user;
+   ```
+
+   `CREATEDB` lets Django create its temporary test database
+   (`test_salon_db`) when running the tests.
+
+2. Export the variables (the password is read silently so it does not end
+   up in the shell history):
+
+   ```bash
+   export DJANGO_DB_NAME=salon_db
+   export DJANGO_DB_USER=salon_user
+   read -s DJANGO_DB_PASSWORD; export DJANGO_DB_PASSWORD
+   ```
+
+3. Create the tables and load demo data:
+
+   ```bash
+   python manage.py migrate
+   python manage.py seed_demo
+   ```
 
 ## API overview
 
@@ -180,8 +220,8 @@ All endpoints are under `/api/`. Authenticated endpoints expect the header
   to the server console.
 - Concurrency: the booking view locks the stylist row with
   `select_for_update`, which has an effect on PostgreSQL but not on
-  SQLite. Production use needs PostgreSQL and a database-level guarantee
-  against double booking.
-- Production deployment is not set up (no Docker, no PostgreSQL
-  configuration, no web server); see "Configuration" for the environment
-  variables that already exist.
+  SQLite. On SQLite, write transactions are started in `IMMEDIATE` mode so
+  concurrent bookings run one after another. A database-level guarantee
+  against double booking (an exclusion constraint) is not added yet.
+- Production deployment is not set up (no Docker, no web server); see
+  "Configuration" for the environment variables that already exist.
